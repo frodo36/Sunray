@@ -38,13 +38,7 @@ int get_turn_direction_preference() {
   float targetDelta = pointsAngle(stateX, stateY, target.x(), target.y());
   float center_x = stateX;
   float center_y = stateY;
-  float r = (MOWER_SIZE / 100);
-  float cur_angle = stateDelta;
-
-  if (FREEWHEEL_IS_AT_BACKSIDE) {
-	  cur_angle = scalePI(stateDelta + PI);
-	  targetDelta = scalePI(targetDelta + PI);
-  }
+  float r = 0.3;
 
   // create circle / octagon around center angle 0 - "360"
   circle.points[0].setXY(center_x + cos(deg2rad(0)) * r, center_y + sin(deg2rad(0)) * r);
@@ -62,7 +56,7 @@ int get_turn_direction_preference() {
   // CONSOLE.print("/");
   // CONSOLE.print(stateY);
   // CONSOLE.print(" stateDelta: ");
-  // CONSOLE.print(cur_angle);
+  // CONSOLE.print(stateDelta);
   // CONSOLE.print(" targetDelta: ");
   // CONSOLE.println(targetDelta);
   int right = 0;
@@ -79,18 +73,18 @@ int get_turn_direction_preference() {
     if (maps.checkpoint(circle.points[i].x(), circle.points[i].y())) {
 
             // skip points in front of us
-            if (fabs(angle-cur_angle) < 0.05) {
+            if (fabs(angle-stateDelta) < 0.05) {
                     continue;
             }
 
-            if (cur_angle < targetDelta) {
-                if (angle >= cur_angle && angle <= targetDelta) {
+            if (stateDelta < targetDelta) {
+                if (angle >= stateDelta && angle <= targetDelta) {
                     left++;
                 } else {
                     right++;
                 }
             } else {
-                   if (angle <= cur_angle && angle >= targetDelta) {
+                   if (angle <= stateDelta && angle >= targetDelta) {
                     right++;
                 } else {
                     left++;
@@ -155,9 +149,7 @@ void trackLine(bool runControl){
     else     
       angleToTargetFits = (fabs(trackerDiffDelta)/PI*180.0 < 20);
   } else {
-    // while tracking the mowing line do allow rotations if angle to target increases (e.g. due to gps jumps)
-    angleToTargetFits = (fabs(trackerDiffDelta)/PI*180.0 < 45);       
-    //angleToTargetFits = true;
+     angleToTargetFits = true;
   }
 
   if (!angleToTargetFits){
@@ -267,8 +259,7 @@ void trackLine(bool runControl){
     //CONSOLE.print(",");        
     //CONSOLE.println(angular/PI*180.0);            
     if (maps.trackReverse) linear *= -1;   // reverse line tracking needs negative speed
-    // restrict steering angle for stanley  (not required anymore after last state estimation bugfix)
-    //if (!SMOOTH_CURVES) angular = max(-PI/16, min(PI/16, angular)); 
+    if (!SMOOTH_CURVES) angular = max(-PI/16, min(PI/16, angular)); // restrict steering angle for stanley
   }
   // check some pre-conditions that can make linear+angular speed zero
   if (fixTimeout != 0){
@@ -325,16 +316,11 @@ void trackLine(bool runControl){
     }
   }
    
-  // in any case, turn off mower motor if lifted 
-  // also, if lifted, do not turn on mowing motor so that the robot will drive and can do obstacle avoidance 
-  if (detectLift()) mow = false;
-  
-  if (mow)  { 
+  if (mow)  {  // wait until mowing motor is running
     if (millis() < motor.motorMowSpinUpTime + 10000){
-       // wait until mowing motor is running
       if (!buzzer.isPlaying()) buzzer.sound(SND_WARNING, true);
       linear = 0;
-      angular = 0;          
+      angular = 0;   
     }
   }
 
@@ -348,6 +334,7 @@ void trackLine(bool runControl){
     }
 
     motor.setLinearAngularSpeed(linear, angular);      
+    if (detectLift()) mow = false; // in any case, turn off mower motor if lifted 
     motor.setMowState(mow);    
   }
 

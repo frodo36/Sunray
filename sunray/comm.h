@@ -13,15 +13,13 @@
 void processComm();
 void outputConsole();
 
-void processCmd(bool checkCrc, bool decrypt);
+void processWifiRelayClient();
+void processWifiAppServer();
+void processWifiMqttClient();
 void processConsole();
+void processBLE();
+void mqttCallback(char* topic, byte* payload, unsigned int length);
 void cmdSwitchOffRobot();
-
-
-extern String cmd;
-extern String cmdResponse;
-
-extern bool bleConnected;
 
 
 #endif

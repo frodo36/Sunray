@@ -190,10 +190,7 @@ class SimGpsDriver : public GpsDriver {
     void setSimSolution(SolType sol);
     void setSimGpsJump(bool flag);
   protected:
-    unsigned long resetTime;
     unsigned long nextSolutionTime;
-    float floatX;
-    float floatY;
 };
 
 #endif

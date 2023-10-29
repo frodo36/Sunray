@@ -47,7 +47,6 @@ class Polygon
     void dealloc();
     void dump();
     long crc();
-    void getCenter(Point &pt);
     bool read(File &file);
     bool write(File &file);
 };

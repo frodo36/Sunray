@@ -47,6 +47,16 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 
 
 
+#ifdef __cplusplus
+  #include "udpserial.h"
+  #include "sdserial.h"
+  #include "src/agcm4/adafruit_grand_central.h"
+  #ifdef __linux__
+    #include "src/linux/linux.h"    
+    #include <Console.h>
+  #endif
+#endif
+
 //#define DRV_SERIAL_ROBOT  1
 #define DRV_ARDUMOWER     1   // keep this for Ardumower
 //#define DRV_SIM_ROBOT     1   // simulation
@@ -107,7 +117,6 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 #define FREEWHEEL_IS_AT_BACKSIDE   true   // default Ardumower: true   (change to false, if your freewheel is at frontside) - this is used for obstacle avoidance
 #define WHEEL_BASE_CM         36         // wheel-to-wheel distance (cm)        
 #define WHEEL_DIAMETER        250        // wheel diameter (mm)                 
-#define MOWER_SIZE            60         // mower / chassis size / length in cm
 
 //#define ENABLE_ODOMETRY_ERROR_DETECTION  true    // use this to detect odometry erros
 #define ENABLE_ODOMETRY_ERROR_DETECTION  false
@@ -138,16 +147,12 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 //#define MOTOR_DRIVER_BRUSHLESS_MOW_A4931  1    // uncomment for brushless A3931 driver and mowing motor
 //#define MOTOR_DRIVER_BRUSHLESS_MOW_BLDC8015A 1  // uncomment for brushless BLDC8015A driver and mowing motor
 //#define MOTOR_DRIVER_BRUSHLESS_MOW_JYQD 1  // uncomment for brushless JYQD driver and mowing motor (https://forum.ardumower.de/threads/jyqd-treiber-und-sunray.24811/)
-//#define MOTOR_DRIVER_BRUSHLESS_MOW_OWL 1  // uncomment for brushless owlDrive mowing motor 
 //#define MOTOR_DRIVER_BRUSHLESS_GEARS_DRV8308  1   // uncomment for brushless DRV8308 driver and gear/traction motors 
 //#define MOTOR_DRIVER_BRUSHLESS_GEARS_A4931  1    // uncomment for brushless A4931 driver and gear/traction motors
 //#define MOTOR_DRIVER_BRUSHLESS_GEARS_BLDC8015A 1   // uncomment for brushless BLDC8015A driver and gear/traction motors
 //#define MOTOR_DRIVER_BRUSHLESS_GEARS_JYQD 1   // uncomment for brushless JYQD driver and gears/traction motor
-//#define MOTOR_DRIVER_BRUSHLESS_GEARS_OWL 1   // uncomment for brushless owlDrive gears/traction motor
-
 
 #define MOTOR_FAULT_CURRENT 6.0    // gear motors fault current (amps)
-#define MOTOR_TOO_LOW_CURRENT 0.005   // gear motor too low current (amps)
 #define MOTOR_OVERLOAD_CURRENT 0.8    // gear motors overload current (amps)
 
 //#define USE_LINEAR_SPEED_RAMP  true      // use a speed ramp for the linear speed
@@ -168,10 +173,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 // certain time (normally a few seconds) and the mower will try again and set a virtual obstacle after too many tries
 // On the other hand, the overload detection will detect situations the fault signal cannot detect: slightly higher current for a longer time 
 
-//#define MAX_MOW_PWM 200  // use this to permanently reduce mowing motor power (255=max)
-
 #define MOW_FAULT_CURRENT 8.0       // mowing motor fault current (amps)
-#define MOW_TOO_LOW_CURRENT 0.005   // mowing motor too low current (amps)
 #define MOW_OVERLOAD_CURRENT 2.0    // mowing motor overload current (amps)
 
 // should the direction of mowing motor toggle each start? (yes: true, no: false)
@@ -192,8 +194,6 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 // should the robot trigger obstacle avoidance on motor errors if motor recovery failed?
 #define ENABLE_FAULT_OBSTACLE_AVOIDANCE true  
 
-// shall the mow motor be activated for normal operation? Deactivate this option for GPS tests and path tracking running tests
-#define ENABLE_MOW_MOTOR true // Default is true, set false for testing purpose to switch off mow motor permanently
 
 // ------ WIFI module (ESP8266 ESP-01 with ESP firmware 2.2.1) --------------------------------
 // NOTE: all settings (maps, absolute position source etc.) are stored in your phone - when using another
@@ -323,7 +323,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 // detect if robot is actually moving (obstacle detection via GPS feedback)
 #define GPS_MOTION_DETECTION          true    // if robot is not moving trigger obstacle avoidance (recommended)
 //#define GPS_MOTION_DETECTION        false   // ignore if robot is not moving
-#define GPS_MOTION_DETECTION_TIMEOUT  8      // timeout for motion (secs)
+#define GPS_MOTION_DETECTION_TIMEOUT  5      // timeout for motion (secs)
 
 // configure ublox f9p with optimal settings (will be stored in f9p RAM only)
 // NOTE: due to a PCB1.3 bug GPS_RX pin is not working and you have to fix this by a wire:
@@ -354,7 +354,6 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 #define OBSTACLE_AVOIDANCE true   // try to find a way around obstacle
 //#define OBSTACLE_AVOIDANCE false  // stop robot on obstacle
 #define OBSTACLE_DIAMETER 1.2   // choose diameter of obstacles placed in front of robot (m) for obstacle avoidance
-#define DISABLE_MOW_MOTOR_AT_OBSTACLE true // switch off mow motor while escape at detected obstacle; set false if mow motor shall not be stopped at detected obstacles
 
 // detect robot being kidnapped? robot will try GPS recovery if distance to tracked path is greater than a certain value
 // (false GPS fix recovery), and if that fails go into error 
@@ -427,7 +426,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 // which Arduino Due USB port do you want to your for serial monitor output (CONSOLE)?
 // Arduino Due native USB port  => choose SerialUSB
 // Arduino Due programming port => choose Serial
-#if defined (__arm__) && defined (__SAM3X8E__) // Arduino Due compatible
+#ifdef _SAM3XA_
   #define BOARD "Arduino Due"
   #define CONSOLE SerialUSB   // Arduino Due: do not change (used for Due native USB serial console)
 #elif __SAMD51__
@@ -451,7 +450,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 #define WIFI_BAUDRATE 115200          // baudrate for WIFI module
 #define ROBOT_BAUDRATE 115200         // baudrate for Linux serial robot (non-Ardumower)
 
-#ifdef __SAM3X8E__                 // Arduino Due
+#ifdef _SAM3XA_                 // Arduino Due
   #define WIFI Serial1
   #define ROBOT Serial1
   #define BLE Serial2
@@ -465,9 +464,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 #elif __linux__ 
   #define WIFI SerialWIFI                
   #define SERIAL_WIFI_PATH "/dev/null"  
-  #define LINUX_BLE       // comment to disable BLE
-  #define BLE SerialBLE             
-  #define SERIAL_BLE_PATH "/dev/null"    // dummy serial device    
+  #define BLE SerialBLE
   #define GPS SerialGPS
   #define SERIAL_GPS_PATH "/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00"  
   #define GPS_HOST "127.0.0.1"  
@@ -599,14 +596,4 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 
 #ifdef BNO055
   #define MPU9250   // just to make mpu driver happy to compile something
-#endif
-
-#ifdef __cplusplus
-  #include "udpserial.h"
-  #include "sdserial.h"
-  #include "src/agcm4/adafruit_grand_central.h"
-  #ifdef __linux__
-    #include "src/linux/linux.h"    
-    #include <Console.h>
-  #endif
 #endif

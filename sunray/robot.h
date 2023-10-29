@@ -33,10 +33,9 @@
   #include "src/esp/WiFiEsp.h"
 #endif
 #include "PubSubClient.h"
-#include "timetable.h"
 
 
-#define VER "Sunray,1.0.317"
+#define VER "Sunray,1.0.298"
 
 // operation types
 enum OperationType {
@@ -135,7 +134,7 @@ extern int motorErrorCounter;
 
 #ifdef DRV_SIM_ROBOT
   extern SimImuDriver imuDriver;
-#elif defined(BNO055)
+#elif BNO055
   extern BnoDriver imuDriver;  
 #else
   extern MpuDriver imuDriver;
@@ -150,7 +149,6 @@ extern Sonar sonar;
 extern VL53L0X tof;
 extern PinManager pinMan;
 extern Map maps;
-extern TimeTable timetable;
 #ifdef DRV_SIM_ROBOT
   extern SimGpsDriver gps;
 #elif GPS_SKYTRAQ

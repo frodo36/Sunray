@@ -487,20 +487,16 @@ void SimImuDriver::setSimTilt(bool flag){
 
 SimGpsDriver::SimGpsDriver(SimRobotDriver &sr): simRobot(sr){
   nextSolutionTime = 0;
-  floatX = 0;
-  floatY = 0;
   solutionAvail = false;
   simGpsJump = false;
-  setSimSolution(SOL_INVALID);
+  setSimSolution(SOL_FIXED);
 }
 
 void SimGpsDriver::begin(Client &client, char *host, uint16_t port){
-  resetTime = millis();
 }
     
     
 void SimGpsDriver::begin(HardwareSerial& bus,uint32_t baud){
-  resetTime = millis();
 }
 
     
@@ -508,51 +504,21 @@ void SimGpsDriver::run(){
   if (true){
     if (millis() > nextSolutionTime){
       nextSolutionTime = millis() + 200; // 5 hz    
-      iTOW += 200 * 100;  // sim has 100 times faster gps time      
       relPosE = simRobot.simX;
       relPosN = simRobot.simY;
       relPosD = 100;
       if (simGpsJump){
-        relPosE += 3.0;
-        relPosN += 3.0; 
-      }
-      if (solution == SOL_INVALID){
-        //CONSOLE.print(resetTime);
-        //CONSOLE.print(",");
-        //CONSOLE.println(millis());
-        if (millis() > resetTime + 2000){
-          solution = SOL_FLOAT;
-        } 
-      }
-      // switch to RTK FLOAT from time to time
-      if (random(1000) < 5){
-        if (solution == SOL_FLOAT) solution = SOL_FIXED;
-          else solution = SOL_FLOAT;
+        relPosE = simRobot.simX + 3.0;
+        relPosN = simRobot.simY + 3.0; 
       }      
-      // simulate RTK FLOAT      
-      if (solution == SOL_FLOAT){
-        relPosE += floatX;
-        relPosN += floatY; 
-      }      
-      if (random(100) < 50) floatX = min(1.5, floatX+0.01);
-        else floatX = max(-1.5, floatX-0.01);
-      if (random(100) < 50) floatY = min(1.5, floatY+0.01);
-        else floatY = max(-1.5, floatY-0.01);
-      
-      if (solution == SOL_FIXED){
-        accuracy = 0.01;
-        hAccuracy = accuracy;
-        vAccuracy = accuracy;
-      } else {
-        accuracy = max(floatX, floatY);
-        hAccuracy = floatX;
-        vAccuracy = floatY;
-      }
-
+      //solution = SOL_FIXED;
       lon = relPosE;
       lat =relPosN;
       height = relPosD;
-      dgpsAge = millis();              
+      accuracy = 0.01;
+      hAccuracy = accuracy;
+      vAccuracy = accuracy;
+      dgpsAge = millis();
       groundSpeed = simRobot.linearSpeed;
       solutionAvail = true;
     }
@@ -566,8 +532,6 @@ bool SimGpsDriver::configure(){
     
 void SimGpsDriver::reboot(){
   CONSOLE.println("SimGpsDriver::reboot");
-  resetTime = millis();
-  solution = SOL_INVALID;
 }
 
 

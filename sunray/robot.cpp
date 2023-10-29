@@ -44,7 +44,6 @@
 #include "i2c.h"
 #include "src/test/test.h"
 #include "bumper.h"
-#include "mqtt.h"
 
 // #define I2C_SPEED  10000
 #define _BV(x) (1 << (x))
@@ -57,7 +56,7 @@ const signed char orientationMatrix[9] = {
 
 #ifdef DRV_SIM_ROBOT
   SimImuDriver imuDriver(robotDriver);
-#elif defined(BNO055)
+#elif BNO055
   BnoDriver imuDriver;  
 #else
   MpuDriver imuDriver;
@@ -71,7 +70,7 @@ const signed char orientationMatrix[9] = {
   SerialRainSensorDriver rainDriver(robotDriver);
   SerialLiftSensorDriver liftDriver(robotDriver);
   SerialBuzzerDriver buzzerDriver(robotDriver);
-#elif defined(DRV_SIM_ROBOT)
+#elif DRV_SIM_ROBOT
   SimRobotDriver robotDriver;
   SimMotorDriver motorDriver(robotDriver);
   SimBatteryDriver batteryDriver(robotDriver);
@@ -107,7 +106,6 @@ Bumper bumper;
 VL53L0X tof(VL53L0X_ADDRESS_DEFAULT);
 Map maps;
 RCModel rcmodel;
-TimeTable timetable;
 
 int stateButton = 0;  
 int stateButtonTemp = 0;
@@ -136,7 +134,6 @@ unsigned long nextGPSMotionCheckTime = 0;
 
 bool finishAndRestart = false;
 
-unsigned long nextBadChargingContactCheck = 0;
 unsigned long nextToFTime = 0;
 unsigned long linearMotionStartTime = 0;
 unsigned long angularMotionStartTime = 0;
@@ -149,17 +146,6 @@ unsigned long nextImuTime = 0;
 unsigned long nextTempTime = 0;
 unsigned long imuDataTimeout = 0;
 unsigned long nextSaveTime = 0;
-unsigned long nextTimetableTime = 0;
-
-//##################################################################################
-unsigned long loopTime = millis();
-int loopTimeNow = 0;
-int loopTimeMax = 0;
-float loopTimeMean = 0;
-int loopTimeMin = 99999;
-unsigned long loopTimeTimer = 0;
-unsigned long wdResetTimer = millis();
-//##################################################################################
 
 bool wifiFound = false;
 char ssid[] = WIFI_SSID;      // your network SSID (name)
@@ -206,6 +192,8 @@ void resetOverallMotionTimeout(){
 void updateGPSMotionCheckTime(){
   nextGPSMotionCheckTime = millis() + GPS_MOTION_DETECTION_TIMEOUT * 1000;     
 }
+
+
 
 
 
@@ -266,7 +254,6 @@ void sensorTest(){
 
 void startWIFI(){
 #ifdef __linux__
-  WiFi.begin();
   wifiFound = true;
 #else  
   CONSOLE.println("probing for ESP8266 (NOTE: will fail for ESP32)...");
@@ -399,9 +386,6 @@ void outputConfig(){
   #ifdef MOTOR_DRIVER_BRUSHLESS_MOW_JYQD
     CONSOLE.println("MOTOR_DRIVER_BRUSHLESS_MOW_JYQD");
   #endif 
-  #ifdef MOTOR_DRIVER_BRUSHLESS_MOW_OWL
-    CONSOLE.println("MOTOR_DRIVER_BRUSHLESS_MOW_OWL");
-  #endif 
 
   #ifdef MOTOR_DRIVER_BRUSHLESS_GEARS_DRV8308
     CONSOLE.println("MOTOR_DRIVER_BRUSHLESS_GEARS_DRV8308");
@@ -414,9 +398,6 @@ void outputConfig(){
   #endif     
   #ifdef MOTOR_DRIVER_BRUSHLESS_GEARS_JYQD
     CONSOLE.println("MOTOR_DRIVER_BRUSHLESS_GEARS_JYQD");
-  #endif
-  #ifdef MOTOR_DRIVER_BRUSHLESS_GEARS_OWL
-    CONSOLE.println("MOTOR_DRIVER_BRUSHLESS_GEARS_OWL");
   #endif
   
   CONSOLE.print("MOTOR_FAULT_CURRENT: ");
@@ -436,10 +417,6 @@ void outputConfig(){
   #endif
   #ifdef MOTOR_RIGHT_SWAP_DIRECTION
     CONSOLE.println("MOTOR_RIGHT_SWAP_DIRECTION");
-  #endif
-  #ifdef MAX_MOW_PWM
-    CONSOLE.print("MAX_MOW_PWM: ");
-    CONSOLE.println(MAX_MOW_PWM);
   #endif
   CONSOLE.print("MOW_FAULT_CURRENT: ");
   CONSOLE.println(MOW_FAULT_CURRENT);
@@ -647,7 +624,7 @@ void start(){
     ntrip.begin();  
   #endif
   
-  watchdogEnable(15000L);   // 15 seconds  
+  watchdogEnable(10000L);   // 10 seconds  
   
   startIMU(false);        
   
@@ -670,7 +647,6 @@ bool robotShouldMove(){
   CONSOLE.println(motor.angularSpeedSet / PI * 180.0);  */
   return ( fabs(motor.linearSpeedSet) > 0.001 );
 }
-
 
 bool robotShouldMoveForward(){
    return ( motor.linearSpeedSet > 0.001 );
@@ -732,7 +708,6 @@ void detectSensorMalfunction(){
 bool detectLift(){  
   #ifdef ENABLE_LIFT_DETECTION
     if (liftDriver.triggered()) {
-      CONSOLE.println("LIFT triggered");
       return true;            
     }  
   #endif 
@@ -926,14 +901,7 @@ void run(){
   }
 
   gps.run();
-
-  if (millis() > nextTimetableTime){
-    nextTimetableTime = millis() + 30000;
-    gps.decodeTOW();
-    timetable.setCurrentTime(gps.hour, gps.mins, gps.dayOfWeek);
-    timetable.run();
-  }
-
+    
   calcStats();  
   
   
@@ -971,12 +939,6 @@ void run(){
       } else {
         activeOp->onChargerDisconnected();
       }            
-    }
-    if (millis() > nextBadChargingContactCheck) {
-      if (battery.badChargerContact()){
-        nextBadChargingContactCheck = millis() + 60000; // 1 min.
-        activeOp->onBadChargingContactDetected();
-      }
     } 
 
     if (battery.underVoltage()){
@@ -1051,39 +1013,8 @@ void run(){
     
   // ----- read serial input (BT/console) -------------
   processComm();
-  outputConsole();    
-
-  //##############################################################################
-
-  if(millis() > wdResetTimer + 1000){
-    watchdogReset();
-  }   
-
-  loopTimeNow = millis() - loopTime;
-  loopTimeMin = min(loopTimeNow, loopTimeMin); 
-  loopTimeMax = max(loopTimeNow, loopTimeMax);
-  loopTimeMean = 0.99 * loopTimeMean + 0.01 * loopTimeNow; 
-  loopTime = millis();
-
-  if(millis() > loopTimeTimer + 10000){
-    if(loopTimeMax > 500){
-      CONSOLE.print("WARNING - LoopTime: ");
-    }else{
-      CONSOLE.print("Info - LoopTime: ");
-    }
-    CONSOLE.print(loopTimeNow);
-    CONSOLE.print(" - ");
-    CONSOLE.print(loopTimeMin);
-    CONSOLE.print(" - ");
-    CONSOLE.print(loopTimeMean);
-    CONSOLE.print(" - ");
-    CONSOLE.print(loopTimeMax);
-    CONSOLE.println("ms");
-    loopTimeMin = 99999; 
-    loopTimeMax = 0;
-    loopTimeTimer = millis();
-  }   
-  //##############################################################################
+  outputConsole();       
+  watchdogReset();
 
   // compute button state (stateButton)
   if (BUTTON_CONTROL){
