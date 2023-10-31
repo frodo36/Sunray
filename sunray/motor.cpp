@@ -231,7 +231,7 @@ void Motor::run() {
     }
   }
     
-  sense();        
+  /*sense();        
 
   // if motor driver indicates a fault signal, try a recovery   
   if ((!recoverMotorFault) && (checkFault())) {
@@ -289,7 +289,7 @@ void Motor::run() {
         nextRecoverMotorFaultTime = 0;
       }        
     }
-  }
+  }*/
   
   int ticksLeft;
   int ticksRight;
@@ -338,7 +338,7 @@ void Motor::run() {
 
 // check if motor current too high
 bool Motor::checkCurrentTooHighError(){
-  bool motorLeftFault = (motorLeftSense > MOTOR_FAULT_CURRENT);
+/*  bool motorLeftFault = (motorLeftSense > MOTOR_FAULT_CURRENT);
   bool motorRightFault = (motorRightSense > MOTOR_FAULT_CURRENT);
   bool motorMowFault = (motorMowSense > MOW_FAULT_CURRENT);
   if (motorLeftFault || motorRightFault || motorMowFault){
@@ -350,7 +350,7 @@ bool Motor::checkCurrentTooHighError(){
     CONSOLE.print(",");
     CONSOLE.println(motorMowSense);
     return true;
-  } 
+  } */
   return false; 
 }
 
@@ -389,7 +389,7 @@ bool Motor::checkFault() {
   bool leftFault = false;
   bool rightFault = false;
   bool mowFault = false;
-  if (ENABLE_FAULT_DETECTION){    
+  /*if (ENABLE_FAULT_DETECTION){    
     motorDriver.getMotorFaults(leftFault, rightFault, mowFault);
   }
   if (leftFault) {
@@ -403,7 +403,7 @@ bool Motor::checkFault() {
   if (mowFault) {
     CONSOLE.println("Error: motor driver mow signaled fault");
     fault = true;
-  }
+  }*/
   return fault;
 }
 
@@ -428,7 +428,7 @@ bool Motor::checkOdometryError() {
 
 // check motor overload
 void Motor::checkOverload(){
-  motorLeftOverload = (motorLeftSenseLP > MOTOR_OVERLOAD_CURRENT);
+ /* motorLeftOverload = (motorLeftSenseLP > MOTOR_OVERLOAD_CURRENT);
   motorRightOverload = (motorRightSenseLP > MOTOR_OVERLOAD_CURRENT);
   motorMowOverload = (motorMowSenseLP > MOW_OVERLOAD_CURRENT);
   if (motorLeftOverload || motorRightOverload || motorMowOverload){
@@ -444,8 +444,9 @@ void Motor::checkOverload(){
     }
     motorOverloadDuration += 20;     
   } else {
+*/
     motorOverloadDuration = 0;
-  }
+ // }
 }
 
 
